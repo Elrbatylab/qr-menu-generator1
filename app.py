@@ -21,8 +21,11 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 # Database setup
-DATABASE = os.path.join(app.instance_path, 'database.db')
-os.makedirs(app.instance_path, exist_ok=True)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATABASE = os.path.join(BASE_DIR, 'instance', 'database.db')
+SCHEMA_PATH = os.path.join(BASE_DIR, 'schema.sql')
+
+os.makedirs(os.path.dirname(DATABASE), exist_ok=True)
 
 def get_db():
     if 'db' not in g:
@@ -39,13 +42,37 @@ def close_db(error):
 def init_db():
     with app.app_context():
         db = get_db()
-        with app.open_resource('schema.sql', mode='r') as f:
-            db.executescript(f.read())
-        db.commit()
+        try:
+            with open(SCHEMA_PATH, 'r') as f:
+                db.executescript(f.read())
+            db.commit()
+        except Exception as e:
+            print(f"Error initializing database: {e}")
+            # Create tables manually if schema file is not found
+            db.execute('''
+                CREATE TABLE IF NOT EXISTS users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT UNIQUE NOT NULL,
+                    password TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            db.execute('''
+                CREATE TABLE IF NOT EXISTS menus (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    menu_name TEXT NOT NULL,
+                    filename TEXT NOT NULL,
+                    url TEXT NOT NULL,
+                    qr_code_url TEXT,
+                    user_id INTEGER NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE CASCADE
+                )
+            ''')
+            db.commit()
 
-# Initialize the database if it doesn't exist
-if not os.path.exists(DATABASE):
-    init_db()
+# Initialize database
+init_db()
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS

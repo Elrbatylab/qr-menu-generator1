@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: qr-menu-generator1
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn wsgi:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9.7
+      - key: PORT
+        value: 10000
+      - key: SECRET_KEY
+        value: 35efa29d044333d9eec6bc882dd8e3b8
+      - key: IMGBB_API_KEY
+        value: 2f4c2773691fe64571698647f8b17a44
